@@ -22,7 +22,41 @@ static std::map<int, std::string> errorDescriptions = {
     {202010, "More to read."},
     {202011, "Failed to read."},
     {202012, "Failed to write."},
-    {202013, "No supported driver."}
+    {202013, "No supported driver."},
+    {203000, "Parameter value out of bounds."},
+    {204010, "Device Manager action limit reached."},
+    {204011, "Failed to generate device ID."},
+    {205000, "Unknown JNI error."},
+    {205001, "Bad JNI call."},
+    {205002, "Find class error."},
+    {205003, "Find field error."},
+    {205004, "Find method error."},
+    {205005, "Call method error."},
+    {205006, "Resource acquisition error."},
+    {205007, "Resource release error."},
+    {302000, "SI error."},
+    {402000, "TM not initialized."},
+    {402001, "No device."},
+    {402002, "Can't map."},
+    {402003, "Failed to open."}, 
+    {402004, "Invalid parameter."}, 
+    {402005, "Missing connected segment."}, 
+    {402006, "Bad parameter."}, 
+    {402007, "TAction ID doesn't exist."}, 
+    {402008, "Database not initialized."}, 
+    {402009, "Max controller limit reached."}, 
+    {402010, "Max action limit reached."}, 
+    {402011, "Controller not found."}, 
+    {402012, "Max tactor location limit reached."}, 
+    {402013, "TAction not found."}, 
+    {402014, "Failed to unload."}, 
+    {402015, "No TActions in database."}, 
+    {402016, "Failed to open database."}, 
+    {402017, "Failed packet parse."}, 
+    {402018, "Failed to clone TAction."},
+    {502000, "DBM error."},
+    {502001, "DBM No error."},
+    {602000, "Bad data."}
 };
 
 // Function to get error description
@@ -63,21 +97,43 @@ void printHelp() {
     mexPrintf("  'discover', <type>      Discover devices of the specified type (e.g., USB = 1).\n");
     mexPrintf("  'connect', <name>, <type>\n");
     mexPrintf("                          Connect to a device with the given name and type.\n");
-    mexPrintf("  'pulse', <deviceID>, <tactor>, <duration>, <delay>\n");
-    mexPrintf("                          Pulse a tactor for the specified duration and delay.\n");
+    mexPrintf("  'setTimeFactor', <value>\n");
+    mexPrintf("                          Set the time factor for the tactor interface (1 - 255).\n");
     mexPrintf("  'changeGain', <deviceID>, <tactor>, <gain>, <delay>\n");
-    mexPrintf("                          Change the gain of a tactor.\n");
+    mexPrintf("                          Change the gain of a tactor (1-indexed).\n");
+    mexPrintf("  'changeFreq', <deviceID>, <tactor>, <freq>, <delay>\n");
+    mexPrintf("                          Change the frequency (300 - 3550) of a tactor.\n");
     mexPrintf("  'getName', <index>\n");
-    mexPrintf("                          Get the name of the tactor from (0-indexed) discovered device list.\n\n");
+    mexPrintf("                          Get the name of the tactor from (0-indexed) discovered device list.\n");
+    mexPrintf("  'rampGain', <deviceID>, <tactor>, <startGain>, <endGain>, <duration>, <delay>\n");
+    mexPrintf("                          Set linear gain ramp over some period of time and delay.\n");
+    mexPrintf("  'rampFreq', <deviceID>, <tactor>, <startFreq>, <endFreq>, <duration>, <delay>\n");
+    mexPrintf("                          Set linear frequency ramp over some period of time and delay.\n");
+    mexPrintf("  'pulse', <deviceID>, <tactor>, <duration>, <delay>\n");
+    mexPrintf("                          Pulse a tactor (1-indexed) for the specified duration and delay.\n");
+    mexPrintf("  'stop', <deviceID>, <delay>\n");
+    mexPrintf("                          Stops all tactors after the specified delay duration.\n");
+    mexPrintf("  'beginStoreTAction', <deviceID>, <tacID>\n");
+    mexPrintf("                          Store a TAction with specified tacID (1 - 10). Should always be called with finishStoreTAction.\n");
+    mexPrintf("  'finishStoreTAction', <deviceID>\n");
+    mexPrintf("                          Stop storing the current TAction.\n");
+    mexPrintf("  'playStoredTAction', <deviceID>, <delay>, <tacID>\n");
+    mexPrintf("                          Play the specified TAction after some delay.\n");
     mexPrintf("Alternative: Use uint8 codes for commands to reduce processing overhead:\n");
-    mexPrintf("  1 = 'initialize', 2 = 'shutdown', 3 = 'discover', 4 = 'connect'\n");
-    mexPrintf("  5 = 'pulse', 6 = 'changeGain, 7 = 'getName'\n\n");
+    mexPrintf("  1 = 'initialize', 2 = 'shutdown', 3 = 'discover'\n");
+    mexPrintf("  4 = 'getName', 5 = 'connect'\n"); 
+    mexPrintf("  6 = 'setTimeFactor', 7 = 'changeGain', 8 = 'changeFreq'\n"); 
+    mexPrintf("  9 = 'rampGain', 10 = 'rampFreq'\n");
+    mexPrintf("  11 = 'pulse', 12 = 'stop'\n");
+    mexPrintf("  13 = 'beginStoreTAction', 14 = 'finishStoreTAction', 15 = 'playStoredTACtion'\n\n");
     mexPrintf("Examples:\n");
-    mexPrintf("  tdk.tactor('initialize');\n");
-    mexPrintf("  tdk.tactor('discover', 1);\n");
-    mexPrintf("  tdk.tactor('connect', 'DeviceName', 1);\n");
-    mexPrintf("  tdk.tactor('pulse', deviceID, 1, 100, 0);\n");
-    mexPrintf("  tdk.tactor('shutdown');\n");
+    mexPrintf("  tactor('initialize');\n");
+    mexPrintf("  tactor('discover', 1);\n");
+    mexPrintf("  tactor('connect', 'DeviceName', 1);\n");
+    mexPrintf("  tactor('pulse', deviceID, 1, 100, 0);\n");
+    mexPrintf("  tactor('shutdown');\n\n");
+    mexPrintf("Note 1: It is probably easiest to use the tdk package functions rather than tactor directly.\n");
+    mexPrintf("Note 2: As of 2025-01-24, Max has not figured out how to make TAction or the ramp functions work.\n\n");
 }
 
 // Individual command functions
@@ -123,8 +179,11 @@ void pulseTactor(int nrhs, const mxArray* prhs[]) {
     int duration = static_cast<int>(mxGetScalar(prhs[3]));
     int delay = static_cast<int>(mxGetScalar(prhs[4]));
 
-    int result = Pulse(deviceID, tacNum, duration, delay);
-    handleError(result, "Pulse");
+    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
+    handleError(internalUpdateResult, "UpdateTI");
+
+    int actualPulseFunctionResult = Pulse(deviceID, tacNum, duration, delay);
+    handleError(actualPulseFunctionResult, "Pulse");
 }
 
 void changeGain(int nrhs, const mxArray* prhs[]) {
@@ -136,23 +195,134 @@ void changeGain(int nrhs, const mxArray* prhs[]) {
     int gainValue = static_cast<int>(mxGetScalar(prhs[3]));
     int delay = static_cast<int>(mxGetScalar(prhs[4]));
 
+    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
+    handleError(internalUpdateResult, "UpdateTI");
+
     int result = ChangeGain(deviceID, tacNum, gainValue, delay);
     handleError(result, "ChangeGain");
+}
+
+void changeFreq(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 5) {
+        mexErrMsgIdAndTxt("TDK:InputError", "ChangeFreq requires deviceID, tactor number, freq value (300 - 3550), and delay.");
+    }
+    int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
+    int tacNum = static_cast<int>(mxGetScalar(prhs[2]));
+    int freqValue = static_cast<int>(mxGetScalar(prhs[3]));
+    int delay = static_cast<int>(mxGetScalar(prhs[4]));
+
+    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
+    handleError(internalUpdateResult, "UpdateTI");
+
+    int result = ChangeFreq(deviceID, tacNum, freqValue, delay);
+    handleError(result, "ChangeFreq");
 }
 
 void getName(int nrhs, const mxArray* prhs[], mxArray*& plhs) {
     if (nrhs < 2) mexErrMsgIdAndTxt("TDK:InputError", "getName requires an index.");
     int index = static_cast<int>(mxGetScalar(prhs[1]));
     const char* deviceName = GetDiscoveredDeviceName(index);
-    if (!deviceName) mexErrMsgIdAndTxt("TDK:Error", "getName failed with error code: %d", GetLastEAIError());
+    if (!deviceName) handleError(GetLastEAIError(), "getName");
     plhs = mxCreateString(deviceName); // Return the device name
+}
+
+void rampFreq(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 7) {
+        mexErrMsgIdAndTxt("TDK:InputError", "ChangeGain requires deviceID, tactor number, start frequency (300 - 3550), end frequency (300 - 3550), ramp duration, and delay.");
+    }
+    int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
+    int tacNum = static_cast<int>(mxGetScalar(prhs[2]));
+    int startFreq = static_cast<int>(mxGetScalar(prhs[3]));
+    int endFreq = static_cast<int>(mxGetScalar(prhs[4]));
+    int duration = static_cast<int>(mxGetScalar(prhs[5]));
+    int delay = static_cast<int>(mxGetScalar(prhs[6]));
+
+    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
+    handleError(internalUpdateResult, "UpdateTI");
+
+    int result = RampFreq(deviceID, tacNum, startFreq, endFreq, duration, TDK_LINEAR_RAMP, delay);
+    handleError(result, "RampFreq");
+}
+
+void rampGain(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 7) {
+        mexErrMsgIdAndTxt("TDK:InputError", "ChangeGain requires deviceID, tactor number, start gain (0 - 255), end gain (0 - 255), ramp duration, and delay.");
+    }
+    int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
+    int tacNum = static_cast<int>(mxGetScalar(prhs[2]));
+    int gainStart = static_cast<int>(mxGetScalar(prhs[3]));
+    int gainEnd = static_cast<int>(mxGetScalar(prhs[4]));
+    int duration = static_cast<int>(mxGetScalar(prhs[5]));
+    int delay = static_cast<int>(mxGetScalar(prhs[6]));
+
+    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
+    handleError(internalUpdateResult, "UpdateTI");
+
+    int result = RampFreq(deviceID, tacNum, gainStart, gainEnd, duration, TDK_LINEAR_RAMP, delay);
+    handleError(result, "RampFreq");
+}
+
+void setTimeFactor(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 2) {
+        mexErrMsgIdAndTxt("TDK:InputError", "SetTimeFactor requires a byte value (1 - 255).");
+    }
+    int value = static_cast<int>(mxGetScalar(prhs[1]));
+
+    int result = SetTimeFactor(value);
+    handleError(result, "SetTimeFactor");
+}
+
+void stopTactor(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 3) {
+        mexErrMsgIdAndTxt("TDK:InputError", "Pulse requires deviceID, and delay.");
+    }
+    int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
+    int delay = static_cast<int>(mxGetScalar(prhs[2]));
+
+    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
+    handleError(internalUpdateResult, "UpdateTI");
+
+    int result = Stop(deviceID, delay);
+    handleError(result, "Stop");
+}
+
+void beginStoreTAction(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 3) {
+        mexErrMsgIdAndTxt("TDK:InputError", "BeginStoreTACtion requires deviceID and TActionID.");
+    }
+    int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
+    int tacID = static_cast<int>(mxGetScalar(prhs[2]));
+    int result = BeginStoreTAction(deviceID, tacID); 
+    handleError(result, "BeginStoreTAction");
+}
+
+void finishStoreTAction(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 2) {
+        mexErrMsgIdAndTxt("TDK:InputError", "FinishStoreTACtion requires deviceID.");
+    }
+    int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
+    int result = FinishStoreTAction(deviceID); 
+    handleError(result, "FinishStoreTAction");
+}
+
+void playStoredTAction(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 4) {
+        mexErrMsgIdAndTxt("TDK:InputError", "BeginStoreTACtion requires deviceID and TActionID.");
+    }
+    int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
+    int delay = static_cast<int>(mxGetScalar(prhs[2])); 
+    int tacID = static_cast<int>(mxGetScalar(prhs[3]));
+    int result = PlayStoredTAction(deviceID, delay, tacID); 
+    handleError(result, "PlayStoredTAction");
 }
 
 // Dispatch Table for String-based Commands
 void dispatchCommand(const char* command, int nrhs, const mxArray* prhs[], mxArray*& plhs) {
     if (strcmp(command, "initialize") == 0) {
         initializeTI();
-    }  else if (strcmp(command, "getName") == 0) {
+    }  else if (strcmp(command, "pulse") == 0) {
+        pulseTactor(nrhs, prhs);
+    } else if (strcmp(command, "getName") == 0) {
         getName(nrhs, prhs, plhs);
     } else if (strcmp(command, "shutdown") == 0) {
         shutdownTI();
@@ -160,10 +330,24 @@ void dispatchCommand(const char* command, int nrhs, const mxArray* prhs[], mxArr
         discoverDevices(nrhs, prhs, plhs);
     } else if (strcmp(command, "connect") == 0) {
         connectDevice(nrhs, prhs, plhs);
-    } else if (strcmp(command, "pulse") == 0) {
-        pulseTactor(nrhs, prhs);
+    } else if (strcmp(command, "setTimeFactor") == 0) {
+        setTimeFactor(nrhs, prhs);
     } else if (strcmp(command, "changeGain") == 0) {
         changeGain(nrhs, prhs);
+    } else if (strcmp(command, "changeFreq") == 0) {
+        changeFreq(nrhs, prhs);
+    } else if (strcmp(command, "stop") == 0) {
+        stopTactor(nrhs, prhs);
+    } else if (strcmp(command, "rampFreq") == 0) {
+        rampFreq(nrhs, prhs);
+    } else if (strcmp(command, "rampGain") == 0) {
+        rampGain(nrhs, prhs);
+    } else if (strcmp(command, "beginStoreTAction") == 0) {
+        beginStoreTAction(nrhs, prhs);
+    } else if (strcmp(command, "finishStoreTAction") == 0) {
+        finishStoreTAction(nrhs, prhs);
+    } else if (strcmp(command, "playStoredTAction") == 0) {
+        playStoredTAction(nrhs, prhs);  
     } else if ((strcmp(command, "help") == 0) || (strcmp(command, "h") == 0)) {
         printHelp();
     } else {
@@ -185,16 +369,40 @@ void dispatchCommand(uint8_t command, int nrhs, const mxArray* prhs[], mxArray*&
             discoverDevices(nrhs, prhs, plhs);
             break;
         case 4:
-            connectDevice(nrhs, prhs, plhs);
+            getName(nrhs, prhs, plhs);
             break;
         case 5:
-            pulseTactor(nrhs, prhs);
+            connectDevice(nrhs, prhs, plhs);
             break;
         case 6:
-            changeGain(nrhs, prhs);
+            setTimeFactor(nrhs, prhs);
             break;
         case 7:
-            getName(nrhs, prhs, plhs);
+            changeGain(nrhs, prhs);
+            break;
+        case 8:
+            changeFreq(nrhs, prhs);
+            break;
+        case 9:
+            rampGain(nrhs, prhs);
+            break;
+        case 10:
+            rampFreq(nrhs, prhs);
+            break;
+        case 11:
+            pulseTactor(nrhs, prhs);
+            break;
+        case 12:
+            stopTactor(nrhs, prhs);
+            break;
+        case 13:
+            beginStoreTAction(nrhs, prhs);
+            break;
+        case 14:
+            finishStoreTAction(nrhs, prhs); 
+            break;
+        case 15:
+            playStoredTAction(nrhs, prhs); 
             break;
         default:
             printHelp();

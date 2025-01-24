@@ -10,8 +10,8 @@ This project provides a MATLAB MEX-based interface to control TDK vibrotactors u
 - TDK API files, including required `.dll` and `.lib` files
 
 ### Setup Steps
-1. Place the `+tdk` folder in your MATLAB path. The best way is by cloning from git and adding to your own git project as a gitmodule:  
-   ```batch
+1. Place the `+tdk` folder in your MATLAB path. The best way is by cloning from Git and adding it to your project as a submodule:
+   ```bash
    cd your_project_folder
    git submodule add git@github.com:Neuro-Mechatronics-Interfaces/matlab_package__tdk.git +tdk
    ```
@@ -25,145 +25,111 @@ This project provides a MATLAB MEX-based interface to control TDK vibrotactors u
    ```matlab
    tdk.setup(); % Should be used at the start of any function that references `tactor`
    ```
-   Now, you can use `tactor(...);` from MATLAB as a `mex` wrapper to the TDK API as explained below.  
 
-## Interface Functions
+Now, you can use the `tactor` MEX function or the helper package functions in `+tdk` as explained below.
 
-### 1. `tactor`
-The main MEX function providing commands to interact with the vibrotactor.
+## MATLAB Package Functions
 
-#### Syntax
-```matlab
-tactor(<command>, <args>...)
-```
+The package provides the following high-level functions for ease of use:
 
-#### Commands
-| Command                    | Arguments                                                                 | Description                                                                 |
-|----------------------------|---------------------------------------------------------------------------|-----------------------------------------------------------------------------|
-| `'initialize'`             | None                                                                      | Initializes the TDK tactor interface.                                       |
-| `'shutdown'`               | None                                                                      | Shuts down the TDK tactor interface and releases resources.                 |
-| `'discover'`               | `<type>` (integer)                                                        | Discovers devices of the specified type (e.g., `1` for USB on Windows).     |
-| `'getName'`                | `<index>` (integer)                                                       | Retrieves the name of the discovered device at the given index.             |
-| `'connect'`                | `<name>` (string), `<type>` (integer)                                     | Connects to the device with the specified name and type.                    |
-| `'pulse'`                  | `<deviceID>` (integer), `<tactor>` (integer), `<duration>` (ms), `<delay>` (ms) | Sends a pulse command to the specified tactor.                              |
-| `'changeGain'`             | `<deviceID>` (integer), `<tactor>` (integer), `<gain>` (1-255), `<delay>` (ms) | Adjusts the gain (intensity) of the specified tactor.                       |
-
-#### Integer Command Codes
-For performance-critical applications, use the following `uint8` command codes instead of strings:
-| Command Code | Equivalent String Command |
-|--------------|---------------------------|
-| `1`          | `'initialize'`            |
-| `2`          | `'shutdown'`              |
-| `3`          | `'discover'`              |
-| `4`          | `'connect'`               |
-| `5`          | `'pulse'`                 |
-| `6`          | `'changeGain'`            |
-| `7`          | `'getName'`               |
-
-### 2. MATLAB Scripts
-
-#### `tdk.install`
-Compiles the `tactor.cpp` file into a MEX file.
+### `tdk.open`
+Opens the first available device and initializes the TDK library.
 - **Usage**:
   ```matlab
-  tdk.install();      % Compile MEX file
-  tdk.install(true);  % Force recompilation
-  ```
-
-#### `tdk.setup`
-Adds the `TDK_API` folder to the MATLAB path to ensure required DLLs are accessible.
-- **Usage**:
-  ```matlab
-  tdk.setup();
-  ```
-
-#### `tdk.example`
-Demonstrates the usage of the `tactor` interface.
-- **Key Operations**:
-  - Initializes the library.
-  - Discovers and connects to a device.
-  - Pulses a tactor and adjusts its gain.
-  - Runs a timing comparison between character-based and uint8 commands.
-
-#### `tdk.test`
-Performs a timing comparison between character-based and uint8-based commands.
-- **Usage**:
-  ```matlab
-  tdk.test(deviceID, numLoops);
+  deviceID = tdk.open();
   ```
 - **Output**:
-  Prints timing results and efficiency gains.
+  - `deviceID`: Integer identifier for the connected device.
 
-## Function Details
+---
 
-### `pulse`
-Sends a pulse command to the specified tactor.
+### `tdk.close`
+Closes the connection to the device and shuts down the library.
+- **Usage**:
+  ```matlab
+  tdk.close();
+  ```
 
-#### Syntax
-```matlab
-tactor('pulse', deviceID, tactor, duration, delay);
-```
+---
 
-#### Parameters
-- `deviceID`: Integer identifier of the connected device.
-- `tactor`: Integer specifying the tactor to pulse (e.g., `1` for the first tactor).
-- `duration`: Duration of the pulse in milliseconds.
-- `delay`: Delay before the pulse starts in milliseconds.
+### `tdk.pulse`
+Pulses the connected tactor for a specified duration.
+- **Usage**:
+  ```matlab
+  tdk.pulse(deviceID, duration);
+  ```
+- **Parameters**:
+  - `deviceID`: Integer identifier for the connected device.
+  - `duration`: Duration of the pulse in milliseconds.
 
-#### Example
-```matlab
-% Pulse tactor 1 on device 0 for 100ms with no delay
-tactor('pulse', deviceID, 1, 100, 0);
-```
+---
 
-### `changeGain`
-Adjusts the intensity (gain) of a tactor.
+### `tdk.setGain`
+Sets the gain (intensity) of the connected tactor.
+- **Usage**:
+  ```matlab
+  tdk.setGain(deviceID, gain);
+  ```
+- **Parameters**:
+  - `deviceID`: Integer identifier for the connected device.
+  - `gain`: Integer value between `1` (minimum) and `255` (maximum).
 
-#### Syntax
-```matlab
-tactor('changeGain', deviceID, tactor, gain, delay);
-```
+---
 
-#### Parameters
-- `deviceID`: Integer identifier of the connected device.
-- `tactor`: Integer specifying the tactor to adjust (e.g., `1` for the first tactor).
-- `gain`: Integer between `1` (lowest) and `255` (highest) specifying the desired intensity.
-- `delay`: Delay before the gain adjustment is applied, in milliseconds.
+### `tdk.setFrequency`
+Sets the frequency of the connected tactor.
+- **Usage**:
+  ```matlab
+  tdk.setFrequency(deviceID, frequency);
+  ```
+- **Parameters**:
+  - `deviceID`: Integer identifier for the connected device.
+  - `frequency`: Integer value between `300` and `3550` Hz.
 
-#### Notes
-- Setting `tactor = 0` adjusts the gain for all tactors.
-- Gains closer to `255` produce higher vibration intensity.
+---
 
-#### Example
-```matlab
-% Set the gain of tactor 1 to maximum with no delay
-tactor('changeGain', deviceID, 1, 255, 0);
-```
+### `tdk.setFrequencyRamp`
+Applies a frequency ramp to the connected tactor.
+- **Usage**:
+  ```matlab
+  tdk.setFrequencyRamp(deviceID, startFreq, endFreq, duration, delay);
+  ```
+- **Parameters**:
+  - `deviceID`: Integer identifier for the connected device.
+  - `startFreq`: Start frequency in Hz.
+  - `endFreq`: End frequency in Hz.
+  - `duration`: Duration of the ramp in milliseconds.
+  - `delay`: Delay before starting the ramp in milliseconds.
 
-## Timing Performance
-Using integer-based command codes (e.g., `uint8(5)` for `'pulse'`) improves performance by avoiding string parsing overhead.
+---
 
-#### Example Timing Comparison
-```matlab
-% Run timing comparison with 10,000 iterations
-tdk.test(deviceID, 10000);
-```
-Output:
-```plaintext
-Timing Results:
-  Character-based commands: 1.234567 seconds (10000 iterations)
-  uint8-based commands:     0.567890 seconds (10000 iterations)
-  Efficiency gain: 54.02%
-```
+### `tdk.setGainRamp`
+Applies a gain ramp to the connected tactor.
+- **Usage**:
+  ```matlab
+  tdk.setGainRamp(deviceID, startGain, endGain, duration, delay);
+  ```
+- **Parameters**:
+  - `deviceID`: Integer identifier for the connected device.
+  - `startGain`: Start gain (1-255).
+  - `endGain`: End gain (1-255).
+  - `duration`: Duration of the ramp in milliseconds.
+  - `delay`: Delay before starting the ramp in milliseconds.
 
-## Troubleshooting
-- **Error: `Connect failed with error code: 202001`**
-  - Ensure the correct device name is used (e.g., obtained via `tactor('getName', 0)`).
-  - Check device connection in the Windows Device Manager.
+---
 
-- **MEX File Not Found**:
-  - Run `tdk.install()` and ensure `tactor.mexw64` is in the `TDK_API` folder.
+### `tdk.stop`
+Stops all active tactors.
+- **Usage**:
+  ```matlab
+  tdk.stop(deviceID, delay);
+  ```
+- **Parameters**:
+  - `deviceID`: Integer identifier for the connected device.
+  - `delay`: Delay before stopping the tactors in milliseconds.
 
-## License
-This project is distributed under the MIT License.
+---
 
+## Example Usage
+
+Use `tdk.example;` to install and see how to use functions in the package.
