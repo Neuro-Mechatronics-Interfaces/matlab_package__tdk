@@ -7,6 +7,9 @@
 // Persistent device state
 static std::map<int, int> deviceConnections; // Map of device IDs to their types
 static bool atExitRegistered = false;       // Track if mexAtExit has been registered
+static bool isConnected = false;
+static bool isInitialized = false;
+
 // Error code lookup table
 static std::map<int, std::string> errorDescriptions = {
     {202000, "No initialization."},
@@ -75,7 +78,8 @@ static std::map<std::string, uint8_t> stringCommands = {
     {"setState", 13},
     {"beginStoreTAction", 14},
     {"finishStoreTAction", 15},
-    {"playStoredTAction", 16}
+    {"playStoredTAction", 16},
+    {"checkConnection", 17}
 };
 
 // Function to get error description
@@ -103,6 +107,7 @@ void cleanup() {
     }
     ShutdownTI();
     deviceConnections.clear();
+    isConnected = false;
 }
 
 // Error handling function with descriptions
@@ -131,12 +136,13 @@ void printHelpCodeList() {
     mexPrintf("  13 = 'setState'\n");
     mexPrintf("  14 = 'beginStoreTAction'\n");
     mexPrintf("  15 = 'finishStoreTAction'\n");
-    mexPrintf("  16 = 'playStoredTACtion'\n\n");
+    mexPrintf("  16 = 'playStoredTACtion'\n");
+    mexPrintf("  17 = 'checkConnection'\n\n");
 }
 
 void printHelpCommandDetails(uint8_t command, bool detailed) {
     if (command == 0) {
-        for (int i = 1; i <= 16; i++) {
+        for (int i = 1; i <= 17; i++) {
             printHelpCommandDetails(i, false);
         }
         mexPrintf("\n<strong>General</strong>\n");
@@ -193,9 +199,12 @@ void printHelpCommandDetails(uint8_t command, bool detailed) {
             mexPrintf("                         Connect to a device with the given name and type.\n");
             if (detailed) {
                 mexPrintf("\n");
-                mexPrintf("                         <strong>Returns:</strong> `deviceID` of connected device (integer e.g. 0).\n");
-                mexPrintf("                                            (handled by tdk.open())\n");
-                mexPrintf("                                               See also: tdk.open()\n");
+                mexPrintf("                <strong>Returns:</strong> `deviceID` of connected device (integer e.g. 0).\n\n");
+                mexPrintf("                        IN: <strong>name</strong> - The name of the port to connect to.\n");
+                mexPrintf("                                                    Example: 'COM9'.\n");
+                mexPrintf("                        IN: <strong>type</strong> - The enumerated interface type.\n");
+                mexPrintf("                                                    Defaults to 1 (WindowsUSB).\n");
+                mexPrintf("                                -> please check out tdk.open() <-\n");
             }
             break;
         case 6:
@@ -220,12 +229,12 @@ void printHelpCommandDetails(uint8_t command, bool detailed) {
             break;
         case 8:
             mexPrintf("  'changeFreq', <deviceID>, <tactor>, <freq>, <delay>\n");
-            mexPrintf("                         Change the frequency (300 Hz - 3550 Hz) of a tactor.\n");
+            mexPrintf("                         Change the frequency (300 Hz - 3500 Hz) of a tactor.\n");
             if (detailed) {
                 mexPrintf("\n");
                 mexPrintf("                        IN: <strong>deviceID</strong> - The device ID to apply the command to.\n");
                 mexPrintf("                        IN: <strong>tactor</strong> - The tactor number for the command. 1-indexed.\n");
-                mexPrintf("                        IN: <strong>freq</strong> - The new frequency (Hz; 300 - 3550).\n");
+                mexPrintf("                        IN: <strong>freq</strong> - The new frequency (Hz; 300 - 3500).\n");
                 mexPrintf("                        IN: <strong>delay</strong> - Delay before running command (ms).\n");
                 mexPrintf("                                                     Does not seem to do anything.\n");
             }
@@ -235,7 +244,12 @@ void printHelpCommandDetails(uint8_t command, bool detailed) {
             mexPrintf("                         Set linear gain ramp over some period of time and delay.\n");
             if (detailed) {
                 mexPrintf("\n");
-                mexPrintf("                         <strong>Does not appear to work.</strong>\n");
+                mexPrintf("                        IN: <strong>deviceID</strong> - The device ID to apply the command to.\n");
+                mexPrintf("                        IN: <strong>tactor</strong> - The tactor number for the command. 1-indexed.\n");
+                mexPrintf("                        IN: <strong>duration</strong> - Duration of the command (ms); range is 1-2500.\n");
+                mexPrintf("                                                     Does not seem affected by `setTimeFactor` scalar.\n");
+                mexPrintf("                        IN: <strong>delay</strong> - Delay before running command (ms).\n");
+                mexPrintf("                                                     Does not seem to do anything.\n");
             }
             break;          
         case 10:
@@ -243,7 +257,14 @@ void printHelpCommandDetails(uint8_t command, bool detailed) {
             mexPrintf("                         Set linear frequency ramp over some period of time and delay.\n");
             if (detailed) {
                 mexPrintf("\n");
-                mexPrintf("                         <strong>Does not appear to work.</strong>\n");
+                mexPrintf("                        IN: <strong>deviceID</strong> - The device ID to apply the command to.\n");
+                mexPrintf("                        IN: <strong>tactor</strong> - The tactor number for the command. 1-indexed.\n");
+                mexPrintf("                        IN: <strong>startFreq</strong> - The ramp starting (Hz; 300 - 3500).\n");
+                mexPrintf("                        IN: <strong>endFreq</strong> - The ramp ending frequency (Hz; 300 - 3500).\n");
+                mexPrintf("                        IN: <strong>duration</strong> - Duration of the command (ms); range is 1-2500.\n");
+                mexPrintf("                                                     Does not seem affected by `setTimeFactor` scalar.\n");
+                mexPrintf("                        IN: <strong>delay</strong> - Delay before running command (ms).\n");
+                mexPrintf("                                                     Does not seem to do anything.\n");
             }
             break;
         case 11:
@@ -253,7 +274,7 @@ void printHelpCommandDetails(uint8_t command, bool detailed) {
                 mexPrintf("\n");
                 mexPrintf("                        IN: <strong>deviceID</strong> - The device ID to apply the command to.\n");
                 mexPrintf("                        IN: <strong>tactor</strong> - The tactor number for the command. 1-indexed.\n");
-                mexPrintf("                        IN: <strong>duration</strong> - Duration of the command (ms); range is 1-255.\n");
+                mexPrintf("                        IN: <strong>duration</strong> - Duration of the command (ms); range is 1-2500.\n");
                 mexPrintf("                                                     Does not seem affected by `setTimeFactor` scalar.\n");
                 mexPrintf("                        IN: <strong>delay</strong> - Delay before running command (ms).\n");
                 mexPrintf("                                                     Does not seem to do anything.\n");
@@ -302,6 +323,14 @@ void printHelpCommandDetails(uint8_t command, bool detailed) {
                 mexPrintf("                         <strong>Does not appear to work.</strong>\n");
             }
             break;
+        case 17:
+            mexPrintf("  'checkConnection'\n");
+            mexPrintf("                         Check if the tactor interface is connected to a device.\n");
+            if (detailed) {
+                mexPrintf("\n");
+                mexPrintf("                         <strong>Returns:</strong> logical scalar indicating connection status.\n");
+            }
+            break;
         default:
             mexErrMsgIdAndTxt("TDK:UnknownCommand", "Unknown command code: %d", command);
     }
@@ -338,12 +367,17 @@ void printHelp() {
 
 // Individual command functions
 void initializeTI() {
+    if (isInitialized) return;
     int result = InitializeTI();
     handleError(result, "InitializeTI");
+    if (result == 0) {
+        isInitialized = true;
+    }
 }
 
 void shutdownTI() {
     cleanup();
+    isInitialized = false;
 }
 
 void discoverDevices(int nrhs, const mxArray* prhs[], mxArray*& plhs) {
@@ -360,14 +394,21 @@ void connectDevice(int nrhs, const mxArray* prhs[], mxArray*& plhs) {
     if (nrhs < 3 || !mxIsChar(prhs[1]) || !mxIsNumeric(prhs[2])) {
         mexErrMsgIdAndTxt("TDK:InputError", "Connect requires a device name (string) and type (integer).");
     }
+    if (isConnected) {
+        mexErrMsgIdAndTxt("TDK:ConnectionError", "Already connected to a device. Close the current connection first.");
+    }
     char deviceName[64];
     mxGetString(prhs[1], deviceName, sizeof(deviceName));
     int type = static_cast<int>(mxGetScalar(prhs[2]));
     int deviceID = Connect(deviceName, type, nullptr);
     handleError(deviceID, "Connect");
-
     deviceConnections[deviceID] = type;
     plhs = mxCreateDoubleScalar(deviceID);
+    isConnected = true;
+}
+
+void checkConnection(mxArray*& plhs) {
+    plhs = mxCreateLogicalScalar(isConnected);
 }
 
 void pulseTactor(int nrhs, const mxArray* prhs[]) {
@@ -447,10 +488,10 @@ void rampFreq(int nrhs, const mxArray* prhs[]) {
     int duration = static_cast<int>(mxGetScalar(prhs[5]));
     int delay = static_cast<int>(mxGetScalar(prhs[6]));
 
-    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
-    handleError(internalUpdateResult, "UpdateTI");
+    // int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
+    // handleError(internalUpdateResult, "UpdateTI");
 
-    int result = RampFreq(deviceID, tacNum, startFreq, endFreq, duration, TDK_LINEAR_RAMP, delay);
+    int result = RampFreq(deviceID, tacNum, startFreq, endFreq, duration, 0x01, delay);
     handleError(result, "RampFreq");
 }
 
@@ -465,11 +506,11 @@ void rampGain(int nrhs, const mxArray* prhs[]) {
     int duration = static_cast<int>(mxGetScalar(prhs[5]));
     int delay = static_cast<int>(mxGetScalar(prhs[6]));
 
-    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
-    handleError(internalUpdateResult, "UpdateTI");
+    // int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
+    // handleError(internalUpdateResult, "UpdateTI");
 
-    int result = RampFreq(deviceID, tacNum, gainStart, gainEnd, duration, TDK_LINEAR_RAMP, delay);
-    handleError(result, "RampFreq");
+    int result = RampGain(deviceID, tacNum, gainStart, gainEnd, duration, 0x01, delay);
+    handleError(result, "RampGain");
 }
 
 void setTimeFactor(int nrhs, const mxArray* prhs[]) {
@@ -483,16 +524,12 @@ void setTimeFactor(int nrhs, const mxArray* prhs[]) {
 }
 
 void stopTactor(int nrhs, const mxArray* prhs[]) {
-    if (nrhs < 3) {
-        mexErrMsgIdAndTxt("TDK:InputError", "Pulse requires deviceID, and delay.");
+    if (nrhs < 2) {
+        mexErrMsgIdAndTxt("TDK:InputError", "Stop requires deviceID.");
     }
     int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
-    int delay = static_cast<int>(mxGetScalar(prhs[2]));
 
-    int internalUpdateResult = UpdateTI(); // Update the Tactor Interface
-    handleError(internalUpdateResult, "UpdateTI");
-
-    int result = Stop(deviceID, delay);
+    int result = Stop(deviceID, 0);
     handleError(result, "Stop");
 }
 
@@ -560,6 +597,8 @@ void dispatchCommand(const char* command, int nrhs, const mxArray* prhs[], mxArr
         finishStoreTAction(nrhs, prhs);
     } else if (strcmp(command, "playStoredTAction") == 0) {
         playStoredTAction(nrhs, prhs);  
+    } else if (strcmp(command, "checkConnection") == 0) {
+        checkConnection(plhs);
     } else if ((strcmp(command, "help") == 0) || (strcmp(command,"-help") == 0)) {
         printHelp();
     } else if ((strcmp(command, "h") == 0) || (strcmp(command,"-h") == 0)) {
@@ -630,6 +669,9 @@ void dispatchCommand(uint8_t command, int nrhs, const mxArray* prhs[], mxArray*&
             break;
         case 16:
             playStoredTAction(nrhs, prhs); 
+            break;
+        case 17:
+            checkConnection(plhs);
             break;
         default:
             printHelp();

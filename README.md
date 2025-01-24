@@ -21,10 +21,13 @@ This project provides a MATLAB MEX-based interface to control TDK vibrotactors u
    tdk.install();
    ```
    Use `tdk.install(true)` to force recompilation if needed.
-3. Ensure the `TDK_API` folder containing required `.dll` files is accessible by running:
+3. Basically all functions need the `deviceID` returned by tdk.open():
    ```matlab
-   tdk.setup(); % Should be used at the start of any function that references `tactor`
+   deviceID = tdk.open(); 
    ```
+   You should use `tdk.close();` at the end of a script to ensure that the device connection is closed.  
+   Multiple calls to `tdk.open()` (e.g. while device is already open) should not disrupt an existing connection, 
+   but if a connection already exists the interface assumes that `deviceID` is 0 and returns that default value.  
 
 Now, you can use the `tactor` MEX function or the helper package functions in `+tdk` as explained below.
 
@@ -63,7 +66,7 @@ Pulses the connected tactor for a specified duration.
   ```
 - **Parameters**:
   - `deviceID`: Integer identifier for the connected device.
-  - `duration`: Duration of the pulse in milliseconds.
+  - `duration`: Duration of the pulse in milliseconds (1-2500).
 
 ---
 
@@ -89,52 +92,49 @@ Sets the frequency of the connected tactor.
   ```
 - **Parameters**:
   - `deviceID`: Integer identifier for the connected device.
-  - `frequency`: Integer value between `300` and `3550` Hz.
+  - `frequency`: Integer value between `300` and `3500` Hz.
 
 ---
 
 ### [`tdk.setFrequencyRamp`](setFrequencyRamp.m)
-_Status: **Does Nothing**_  
+_Status: **Working**_  
 Applies a frequency ramp to the connected tactor.
 - **Usage**:
   ```matlab
-  tdk.setFrequencyRamp(deviceID, startFreq, endFreq, duration, delay);
+  tdk.setFrequencyRamp(deviceID, startFreq, endFreq, duration);
   ```
 - **Parameters**:
   - `deviceID`: Integer identifier for the connected device.
-  - `startFreq`: Start frequency in Hz.
-  - `endFreq`: End frequency in Hz.
-  - `duration`: Duration of the ramp in milliseconds.
-  - `delay`: Delay before starting the ramp in milliseconds.
+  - `startFreq`: Start frequency in Hz (300-3500).
+  - `endFreq`: End frequency in Hz (300-3500).
+  - `duration`: Duration of the ramp in milliseconds (1-2500).
 
 ---
 
 ### [`tdk.setGainRamp`](setGainRamp.m)
-_Status: **Does Nothing**_  
+_Status: **Working**_  
 Applies a gain ramp to the connected tactor.
 - **Usage**:
   ```matlab
-  tdk.setGainRamp(deviceID, startGain, endGain, duration, delay);
+  tdk.setGainRamp(deviceID, startGain, endGain, duration);
   ```
 - **Parameters**:
   - `deviceID`: Integer identifier for the connected device.
   - `startGain`: Start gain (1-255).
   - `endGain`: End gain (1-255).
-  - `duration`: Duration of the ramp in milliseconds.
-  - `delay`: Delay before starting the ramp in milliseconds.
+  - `duration`: Duration of the ramp in milliseconds (1-2500).
 
 ---
 
 ### [`tdk.stop`](stop.m)
-_Status: **Untested**_  
+_Status: **Working**_  
 Stops all active tactors.
 - **Usage**:
   ```matlab
-  tdk.stop(deviceID, delay);
+  tdk.stop(deviceID);
   ```
 - **Parameters**:
   - `deviceID`: Integer identifier for the connected device.
-  - `delay`: Delay before stopping the tactors in milliseconds.
 
 ---
 
