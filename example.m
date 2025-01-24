@@ -17,12 +17,12 @@ tactor('changeGain', deviceID, 1, 191, 0);
 tactor('pulse', deviceID, 1, 100, 0);
 pause(1);
 
-% Change gain to 25% (0 - off | 1 - max), after a delay of 1s milliseconds
+
+tdk.setGain(deviceID, 0.5);
 tdk.setFrequency(deviceID, 300); % Set to low end of frequencies
 tdk.pulse(deviceID, 250); % Pulse the tactor for 250ms
 pause(1);
 
-% Change gain to 25% (0 - off | 1 - max), after a delay of 1s milliseconds
 tdk.setFrequency(deviceID, 3000); % Set to high end of frequencies
 tdk.pulse(deviceID, 250); % Pulse the tactor for 250ms
 pause(1);

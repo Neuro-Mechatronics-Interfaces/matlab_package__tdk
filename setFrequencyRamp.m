@@ -5,13 +5,15 @@ function setFrequencyRamp(deviceID, startFreq, endFreq, duration)
 %   tdk.setFrequencyRamp(deviceID, startFreq, endFreq, duration);
 
 arguments
-    deviceID (1,1) {mustBeInteger} % Identifier for device
+    deviceID (1,1) {mustBeInteger} %#ok<*INUSA> % Identifier for device
     startFreq (1,1) int16 {mustBeInRange(startFreq,300,3550)}
     endFreq (1,1) int16 {mustBeInRange(endFreq,300,3550)}
     duration (1,1) int16 {mustBeInteger, mustBeInRange(duration,0,255)}; % Value before scaling by setTimeFactor(scalar)
 end
 
-valStart = uint8(round(255.0 * startFreq));
+error("This does not seem to work.");
+
+valStart = uint8(round(255.0 * startFreq)); %#ok<*UNRCH>
 valEnd = uint8(round(255.0 * endFreq));
 
 % uint8(10) == 'rampFreq' code

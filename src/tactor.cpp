@@ -113,6 +113,8 @@ void printHelp() {
     mexPrintf("                          Pulse a tactor (1-indexed) for the specified duration and delay.\n");
     mexPrintf("  'stop', <deviceID>, <delay>\n");
     mexPrintf("                          Stops all tactors after the specified delay duration.\n");
+    mexPrintf("  'setState', <deviceID>, <delay>, <states>\n");
+    mexPrintf("                        Set the state of all tactors after the specified delay duration.\n");
     mexPrintf("  'beginStoreTAction', <deviceID>, <tacID>\n");
     mexPrintf("                          Store a TAction with specified tacID (1 - 10). Should always be called with finishStoreTAction.\n");
     mexPrintf("  'finishStoreTAction', <deviceID>\n");
@@ -124,8 +126,8 @@ void printHelp() {
     mexPrintf("  4 = 'getName', 5 = 'connect'\n"); 
     mexPrintf("  6 = 'setTimeFactor', 7 = 'changeGain', 8 = 'changeFreq'\n"); 
     mexPrintf("  9 = 'rampGain', 10 = 'rampFreq'\n");
-    mexPrintf("  11 = 'pulse', 12 = 'stop'\n");
-    mexPrintf("  13 = 'beginStoreTAction', 14 = 'finishStoreTAction', 15 = 'playStoredTACtion'\n\n");
+    mexPrintf("  11 = 'pulse', 12 = 'stop', 13 = 'setState', \n");
+    mexPrintf("  14 = 'beginStoreTAction', 15 = 'finishStoreTAction', 16 = 'playStoredTACtion'\n\n");
     mexPrintf("Examples:\n");
     mexPrintf("  tactor('initialize');\n");
     mexPrintf("  tactor('discover', 1);\n");
@@ -184,6 +186,16 @@ void pulseTactor(int nrhs, const mxArray* prhs[]) {
 
     int actualPulseFunctionResult = Pulse(deviceID, tacNum, duration, delay);
     handleError(actualPulseFunctionResult, "Pulse");
+}
+
+void setState(int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 3) {
+        mexErrMsgIdAndTxt("TDK:InputError", "SetState requires deviceID and states (64-bit mask of ON/OFF with tactor1 == LSB).");
+    }
+    int deviceID = static_cast<int>(mxGetScalar(prhs[1]));
+    unsigned char* states = (unsigned char*)mxGetData(prhs[2]);
+    int result = SetTactors(deviceID, 0, states);
+    handleError(result, "SetTactors");
 }
 
 void changeGain(int nrhs, const mxArray* prhs[]) {
@@ -322,6 +334,8 @@ void dispatchCommand(const char* command, int nrhs, const mxArray* prhs[], mxArr
         initializeTI();
     }  else if (strcmp(command, "pulse") == 0) {
         pulseTactor(nrhs, prhs);
+    } else if (strcmp(command, "setState") == 0) {
+        setState(nrhs, prhs);
     } else if (strcmp(command, "getName") == 0) {
         getName(nrhs, prhs, plhs);
     } else if (strcmp(command, "shutdown") == 0) {
@@ -396,12 +410,15 @@ void dispatchCommand(uint8_t command, int nrhs, const mxArray* prhs[], mxArray*&
             stopTactor(nrhs, prhs);
             break;
         case 13:
-            beginStoreTAction(nrhs, prhs);
+            setState(nrhs, prhs);
             break;
         case 14:
-            finishStoreTAction(nrhs, prhs); 
+            beginStoreTAction(nrhs, prhs);
             break;
         case 15:
+            finishStoreTAction(nrhs, prhs); 
+            break;
+        case 16:
             playStoredTAction(nrhs, prhs); 
             break;
         default:

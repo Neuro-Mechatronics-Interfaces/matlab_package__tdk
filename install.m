@@ -21,6 +21,7 @@ if ~force
     if exist(fullfile(thisDir, 'tactor.mexw64'), 'file') == 0
         fprintf(1, 'No mex file detected. Installing...\n');
     else
+        tdk.setup(); % Just in case
         fprintf(1, 'Detected compiled mex. Skipping installation.\n\t->\t(Run tdk.install(true) to force re-compile of mex)\n');
         return;
     end

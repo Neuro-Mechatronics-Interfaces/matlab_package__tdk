@@ -32,7 +32,8 @@ Now, you can use the `tactor` MEX function or the helper package functions in `+
 
 The package provides the following high-level functions for ease of use:
 
-### `tdk.open`
+### [`tdk.open`](open.m)
+_Status: **Working**_  
 Opens the first available device and initializes the TDK library.
 - **Usage**:
   ```matlab
@@ -43,7 +44,8 @@ Opens the first available device and initializes the TDK library.
 
 ---
 
-### `tdk.close`
+### [`tdk.close`](close.m)
+_Status: **Working**_  
 Closes the connection to the device and shuts down the library.
 - **Usage**:
   ```matlab
@@ -52,7 +54,8 @@ Closes the connection to the device and shuts down the library.
 
 ---
 
-### `tdk.pulse`
+### [`tdk.pulse`](pulse.m)
+_Status: **Working**_  
 Pulses the connected tactor for a specified duration.
 - **Usage**:
   ```matlab
@@ -64,7 +67,8 @@ Pulses the connected tactor for a specified duration.
 
 ---
 
-### `tdk.setGain`
+### [`tdk.setGain`](setGain.m)
+_Status: **Working**_  
 Sets the gain (intensity) of the connected tactor.
 - **Usage**:
   ```matlab
@@ -76,7 +80,8 @@ Sets the gain (intensity) of the connected tactor.
 
 ---
 
-### `tdk.setFrequency`
+### [`tdk.setFrequency`](setFrequency.m)
+_Status: **Working**_  
 Sets the frequency of the connected tactor.
 - **Usage**:
   ```matlab
@@ -88,7 +93,8 @@ Sets the frequency of the connected tactor.
 
 ---
 
-### `tdk.setFrequencyRamp`
+### [`tdk.setFrequencyRamp`](setFrequencyRamp.m)
+_Status: **Does Nothing**_  
 Applies a frequency ramp to the connected tactor.
 - **Usage**:
   ```matlab
@@ -103,7 +109,8 @@ Applies a frequency ramp to the connected tactor.
 
 ---
 
-### `tdk.setGainRamp`
+### [`tdk.setGainRamp`](setGainRamp.m)
+_Status: **Does Nothing**_  
 Applies a gain ramp to the connected tactor.
 - **Usage**:
   ```matlab
@@ -118,7 +125,8 @@ Applies a gain ramp to the connected tactor.
 
 ---
 
-### `tdk.stop`
+### [`tdk.stop`](stop.m)
+_Status: **Untested**_  
 Stops all active tactors.
 - **Usage**:
   ```matlab
@@ -132,4 +140,8 @@ Stops all active tactors.
 
 ## Example Usage
 
-Use `tdk.example;` to install and see how to use functions in the package.
+Use [`tdk.example`](example.m) to install and see how to use functions in the package.
+```
+cd your_project_folder;
+tdk.example;
+```
